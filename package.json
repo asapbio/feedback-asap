@@ -1,0 +1,16 @@
+{
+  "name": "feedback-asap",
+  "version": "1.0.0",
+  "description": "Disqus comments on bioRxiv and medRxiv preprints that contain the hashtag #FeedbackASAP",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^9.0.1",
+    "jsonexport": "^3.2.0",
+    "metascraper": "^5.22.5",
+    "node-fetch": "^2.6.1",
+    "string-strip-html": "^8.3.0"
+  }
+}

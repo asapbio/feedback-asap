@@ -1,0 +1,32 @@
+name: Get comments
+
+on:
+  # run once a day
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  tweet-comment:
+    runs-on: ubuntu-latest
+    environment: bot
+    env:
+      # secrets to environment variables
+      DISQUS_API_KEY: ${{ secrets.DISQUS_API_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: "14.x"
+      - name: Install packages
+        run: yarn install
+      - name: Run bot
+        run: yarn start
+      - name: Commit updated output
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          file_pattern: "output.csv"
+          commit_message: "Run bot and update output"
+          push_options: --force
+          branch: main
