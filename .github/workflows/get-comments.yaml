@@ -6,7 +6,7 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
-  tweet-comment:
+  get-comments:
     runs-on: ubuntu-latest
     environment: bot
     env:
