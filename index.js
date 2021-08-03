@@ -1,5 +1,5 @@
 require("dotenv").config();
-const { writeFileSync, writeFile } = require("fs");
+const { writeFileSync } = require("fs");
 const fetch = require("node-fetch");
 const { stripHtml } = require("string-strip-html");
 const metascraper = require("metascraper");
@@ -8,12 +8,11 @@ const jsonexport = require("jsonexport");
 // api key
 const apiKey = process.env.DISQUS_API_KEY || "";
 
-// hashtag to look for
-const keyword = "#FeedbackASAP";
+// keywords to look for
+const keywords = ["feedback", "request", "preprint", "comment", "public"];
 
 // disqus apis
 const postsApi = "https://disqus.com/api/3.0/forums/listPosts";
-const detailsApi = "https://disqus.com/api/3.0/threads/details";
 
 // disqus "forum" names for bio/medrxiv
 const forums = ["biorxivstage", "medrxiv"];
@@ -21,16 +20,18 @@ const forums = ["biorxivstage", "medrxiv"];
 async function getComments() {
   // collect all comments from bio/medrxiv
   let items = [];
+
   for (const forum of forums) {
     // set search params
     const params = new URLSearchParams();
     params.set("api_key", apiKey);
     params.set("forum", forum);
+    params.set("related", "thread");
     params.set("limit", 100);
 
     // hard limit request pages
-    for (let page = 0; page < 200; page++) {
-      console.log(`Getting forum ${forum} page ${page + 1} of comments`);
+    for (let page = 0; page < 10; page++) {
+      console.log(`Getting page ${page + 1} of comments from ${forum}`);
 
       // get page of results
       const url = postsApi + "?" + params.toString();
@@ -47,40 +48,32 @@ async function getComments() {
 
   console.log(`Found ${items.length} total comments`);
 
-  // get only comments with keyword
-  items = items.filter(({ message }) =>
-    message.toLowerCase().includes(keyword.toLowerCase())
-  );
-
-  console.log(`Found ${items.length} comments with keywords`);
-
   // keep only comment properties we want
-  items = items.map(({ thread, forum, message, createdAt, author }) => ({
-    thread,
-    forum,
-    message: stripHtml(message).result,
-    date: createdAt,
-    username: author.username,
-    name: author.name,
-  }));
-
-  // get link of comments
-  items = await Promise.all(
-    items.map(async ({ thread, ...rest }, index) => {
-      console.log(`Getting url of comment ${index + 1}`);
-
-      // set search params
-      const params = new URLSearchParams();
-      params.set("api_key", apiKey);
-      params.set("thread", thread);
-
-      // get link of page
-      const url = detailsApi + "?" + params.toString();
-      const { response } = await (await fetch(url)).json();
-      const { link } = response;
-      return { link, ...rest };
+  items = items.map(
+    ({
+      url = "",
+      forum = "",
+      message = "",
+      createdAt = null,
+      author = {},
+    }) => ({
+      url,
+      forum,
+      keywords: keywords.filter((keyword) =>
+        message.toLowerCase().includes(keyword)
+      ).length,
+      message: stripHtml(message).result,
+      date: createdAt,
+      username: author.username,
+      name: author.name,
     })
   );
+
+  // sort by date
+  items = items.sort((a, b) => new Date(a) - new Date(b));
+
+  // keep only last few
+  items = items.slice(0, 100);
 
   // create rules for metascraper to extract metadata from html
   const toRule = (field) => [
@@ -100,17 +93,17 @@ async function getComments() {
 
   // get paper metadata from links
   items = await Promise.all(
-    items.map(async ({ link, ...rest }, index) => {
+    items.map(async ({ url, ...rest }, index) => {
       console.log(`Getting paper metadata of comment ${index + 1}`);
 
       // fetch html content of link
-      const html = await (await fetch(link)).text();
+      const html = await (await fetch(url)).text();
 
       // extract out metadata from html
-      const metadata = await metascraper([rules])({ html, url: link });
+      const metadata = await metascraper([rules])({ html, url });
 
       // split object into comment info and paper info
-      return { comment: { link, ...rest }, paper: metadata };
+      return { comment: { url, ...rest }, paper: metadata };
     })
   );
 
