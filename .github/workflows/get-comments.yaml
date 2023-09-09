@@ -28,5 +28,6 @@ jobs:
         with:
           file_pattern: "output.csv"
           commit_message: "Run bot and update output"
+          commit_author: "Bot <>"
           push_options: --force
           branch: main
